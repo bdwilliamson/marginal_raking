@@ -1,0 +1,280 @@
+---
+title: "Nonparametric generalized raking for incomplete data"
+author: "Brian D. Williamson, PhD<br> <span style= 'font-size: 75%;'> Kaiser Permanente Washington Health Research Institute </span>"
+date: "17 December, 2024 <br> <a href = 'https://bdwilliamson.github.io/#talks' style = 'color: white;'>https://bdwilliamson.github.io/#talks</a>"
+output:
+  xaringan::moon_reader:
+    css: xaringan-themer.css
+    nature:
+      titleSlideClass: ["center", "middle"]
+      highlightStyle: tomorrow-night-blue
+      highlightLanguage: rmarkdown
+      highlightLines: false
+      slideNumberFormat: '%current%'
+      countIncrementalSlides: false
+---
+
+```{r xaringan-setup, include=FALSE, warning=FALSE}
+library("xaringanthemer")
+library("dplyr")
+library("knitr")
+library("kableExtra")
+extra_css <- list(
+  ".small" =  list(`font-size` = "60%"),
+  ".large" =  list(`font-size` = "150%"),
+  ".huge" =  list(`font-size` = "300%"),
+  "ul li" = list(`margin-bottom` = "10px"),
+  ".gray" = list(color = "#C0C0C0"),
+  ".red" = list(color = "#FF0000"),
+  ".green" = list(color = "#097969"),
+  ".blue1" = list(color = "#3AABBE"),
+  ".blue2" = list(color = "#2A6D90"),
+  ".blue3" = list(color = "#446874"),
+  ".purple" = list(color = "#624474"),
+  ".mutedred" = list(color = "#745344"),
+  "a" = list(color = "#3AABBE"),
+  "a:hover" = list("text-decoration" = "underline")
+)
+# set up fonts
+style_mono_accent(
+  base_color = "#446874",
+  header_font_google = google_font("DM Sans"),
+  text_font_google   = google_font("DM Sans", "400", "400i"),
+  code_font_google   = google_font("Courier Prime"),
+  extra_css = extra_css
+)
+
+xaringanExtra::use_tile_view()
+```
+
+<style type="text/css">
+.remark-slide-content {
+    font-size: 20px
+    header-h2-font-size: 1.75rem;
+}
+</style>
+
+## Acknowledgments
+
+This work was done in collaboration with:
+```{r acknowledgments, echo = FALSE, fig.show = "hold", out.width="100%", fig.align = "center"}
+knitr::include_graphics(c(
+    "img/people.png"
+  ))
+```
+
+---
+
+## Motivation
+
+We are often missing data on some people:
+* traditional missing data
+* two-phase studies (missing data by design)
+* Electronic health records 
+
+Traditional methods require correct outcome model and either
+* correct missing-data model (inverse probability weighting)
+* correct imputation model (multiple imputation)
+
+Here, we consider estimators that are consistent under weaker conditions
+
+---
+
+## Data structure and notation
+
+Outcome: $Y$
+
+(binary) Exposure or treatment: $X$ 
+
+--
+
+Covariates measured on full cohort: $Z$
+
+Covariates subject to missingness: $W$
+
+Indicator of complete data: $R$
+
+--
+
+Ideal data $(Y,X,Z,W) \sim \mathbb{P}_0$
+
+Observed data $(Y, X, Z, R, RW) \sim P_0$
+
+---
+
+## Estimating a regression parameter with missing data
+
+Suppose our interest is in estimating $\beta_1$ from model $$E(Y \mid X = x, Z = z, W = w) = \beta_0 + \beta_1 x + [z, w] \alpha$$
+
+--
+
+Classical estimator: inverse probability of coarsening-weighted (IPW) estimator
+
+--
+
+Probability of observing $W$: $\pi_0(y,x,z) = E_0(R \mid Y = y, X = x, Z = z)$
+
+Suppose $U(\beta)$ is the ideal-data estimating equation
+
+IPW estimator: 
+1. Obtain estimator $\pi_{n,IPW}(y,x,z)$ of $\pi_0$ (using, e.g., logistic regression)
+2. Solve IPW estimating equation: $$0 = \frac{1}{n}\sum_{i=1}^n \frac{R_i}{\pi_{n,IPW}(Y_i, X_i, Z_i)}U(\hat{\beta}_{1,IPW})$$ (using, e.g., `glm` in `R`)
+
+---
+
+## Generalized raking
+
+If $\pi_{n,IPW}$ is consistent, then $\hat{\beta}_{1,IPW}$ is consistent
+
+What if $\pi_{n,IPW}$ is not consistent?
+
+--
+
+Idea: adjust the weights to increase robustness
+
+For a distance measure $d$, 
+\begin{align*}
+  \pi_{n,GR,i} =& \ a_i \pi_{n,IPW,i} \\
+  a =& \ \min_{b \in \mathbb{R}^n} \sum_{i=1}^n R_i d(b_i \pi_{n,IPW,i}^{-1}, \pi_{n,IPW,i}^{-1}) \\
+  & \ \text{subject to} \sum_{i = 1}^n h_i = \sum_{i = 1}^n R_i b_i h_i \pi_{n,IPW,i}^{-1},
+\end{align*}
+where $h$ is a vector of the estimated efficient influence functions for the regression parameters
+
+Then, solve estimating equation: $$0 = \frac{1}{n}\sum_{i=1}^n \frac{R_i}{\pi_{n,GR}(Y_i, X_i, Z_i)}U(\hat{\beta}_{1,GR})$$ 
+
+---
+
+## Generalized raking
+
+Shown to be equivalent to the optimal augmented IPW (AIPW) estimator [Lumley et al. (2011), Robins et al. (1994)]
+
+Implemented in software: `R` `survey` package [Lumley (2004)]
+
+The generalized raking estimator is _asymptotically linear_: we can write 
+\begin{align*}
+  \sqrt{n}(\hat{\beta}_{1,GR} - \beta_1) = \frac{1}{\sqrt{n}}\sum_{i=1}^n \phi_\beta(Y_i, X_i, Z_i, W_i) + o_P(1)
+\end{align*}
+
+Inference for $\beta_1$ can be carried out using the influence function $\phi_\beta$
+* for glms, $\phi_\beta = I(\beta)^{-1}\dot{\ell}_\beta(y, x,z,w)$
+* $I$ is the Fisher information
+* $\dot{\ell}$ is the score
+
+---
+
+## Marginal estimands
+
+Now, interest is in a .blue1[marginal] estimand
+
+Examples:
+* Treatment-specific mean: $\mu_x = E\{E(Y \mid X = x, Z, W)\}$
+* Average treatment effect (ATE): $ATE = \mu_1 - \mu_0$
+* With binary outcomes:
+  * risk difference (RD) = ATE
+  * relative risk (RR): $RR = \frac{\mu_1}{\mu_0}$
+
+Often of interest in causal inference, safety and efficacy studies
+
+---
+
+## Using traditional generalized raking
+
+How do we estimate the ATE using traditional raking?
+
+1. Estimate $\pi_{n,IPW}$ using, e.g., logistic regression
+2. Calibrate weights*, obtain $\pi_{n,GR}$
+3. Fit weighted outcome regression model, obtain $Q_n$ (using, e.g., linear regression)
+4. Estimate treatment-specific means $$\mu_{x,n} = \sum_{i=1}^n \frac{R_i}{\pi_{n,GR,i}}Q_n(x, Z_i, W_i)$$
+5. Plug in treatment-specific means to estimate ATE: $ATE_n = \mu_{1,n} - \mu_{0,n}$
+6. Inference can be carried out using the delta method
+
+* using influence functions for regression parameters
+
+---
+
+## Marginal generalized raking
+
+Traditional raking is doubly robust: consistent if either 
+* estimator $Q_n$ of $Q(x,z,w) = E(Y \mid X = x, Z = z, W = w)$ is consistent, or
+* estimator $\pi_n$ of $\pi = E(R \mid X = x, Z = z, Y = y)$ is consistent
+
+The theory for traditional raking relies on .blue1[parametric models]
+* $Q_n$ and $\pi_n$ could be inconsistent in complex models
+
+--
+
+idea 1: use machine learning to gain robustness
+
+idea 2: target marginal estimand to gain efficiency over delta method
+
+---
+
+## Using marginal generalized raking
+
+How do we estimate the ATE using marginal raking?
+
+1. Estimate $\pi_{n,IPW}$ using, e.g., logistic regression or machine learning
+2. Calibrate weights*, obtain $\pi_{n,GR}$
+3. Fit weighted outcome regression model, obtain $Q_n$ (using, e.g., machine learning)
+4. Estimate treatment-specific means $$\mu_{x,n} = \sum_{i=1}^n \frac{R_i}{\pi_{n,GR,i}}Q_n(x, Z_i, W_i)$$
+5. Plug in treatment-specific means to estimate ATE: $ATE_n = \mu_{1,n} - \mu_{0,n}$
+6. Inference can be carried out using influence functions
+
+* using influence function for estimand of interest
+
+Influence functions for common estimands (e.g., ATE, RR) well-studied
+
+---
+
+## Simulation
+
+Estimators to compare:
+1. traditional raking
+2. marginal raking using semiparametric influence function
+3. marginal raking using nonparametric influence function
+
+Data: 
+* four continuous covariates $(Z_1, Z_2)$, $(W_1, W_2)$
+* missing data probability 40%
+
+Scenarios:
+1. continuous outcome
+2. binary outcome with $P(Y = 1) = 0.25$
+
+Simple outcome model and missing-data model
+
+---
+
+## Results - continuous outcome
+
+```{r sim-results-continuous, echo = FALSE, fig.show = "hold", out.width="100%", fig.align = "center"}
+knitr::include_graphics(c("img/sim_combined_performance_plot_s9.png"))
+```
+
+---
+
+## Results - binary outcome
+
+```{r sim-results-binary, echo = FALSE, fig.show = "hold", out.width="100%", fig.align = "center"}
+knitr::include_graphics(c("img/sim_combined_performance_plot_s1.png"))
+```
+
+---
+
+## Closing thoughts
+
+In simple scenarios, all estimators perform similarly
+
+In more complex scenarios, nonparametric marginal raking expected to be more robust than traditional raking
+
+Preprint to come on arXiv
+
+`r icons::fontawesome('github')` https://github.com/bdwilliamson | `r icons::fontawesome('globe')` https://bdwilliamson.github.io
+
+---
+
+## References
+
+* .small[Lumley T, Shaw PA, Dai JY (2011). Connections between survey calibration estimators and semiparametric models for incomplete data. _International Statistical Review_]
+* .small[Lumley T (2004). Analysis of complex survey samples. _Journal of Statistical Software_]
+* .small[Robins JM, Rotnitzky A, Zhao LP (1994). Estimation of regression coefficients when some regressors are not always observed. _Journal of the American Statistical Association_]

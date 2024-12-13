@@ -1,0 +1,11 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+*.txt
+img/img_files/*
+*.pptx
+marginal_raking*
+
